@@ -104,6 +104,42 @@ var migrateDownCmd = &cobra.Command{
 	},
 }
 
+// migrateForceCommand represents the migrate force command
+var migrateForceCommand = &cobra.Command{
+	Use:   "force VERSION",
+	Short: "Force set version, eg. after a failed migration",
+	Long:  `Force set version, eg. after a failed migration.`,
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		m, err := newMigrate()
+		if err != nil {
+			return err
+		}
+		ver, err := strconv.Atoi(args[0])
+		if err != nil {
+			return err
+		}
+		return closeAfterMigrate(m, m.Force(ver))
+	},
+}
+
+// migrateVersionCommand represents the migrate version command
+var migrateVersionCommand = &cobra.Command{
+	Use:   "version",
+	Short: "Print the current database version",
+	Long:  `Print the current database version.`,
+	Args:  cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		m, err := newMigrate()
+		if err != nil {
+			return err
+		}
+		ver, dirty, err := m.Version()
+		fmt.Printf("%d (dirty: %v)\n", ver, dirty)
+		return closeAfterMigrate(m, err)
+	},
+}
+
 // migrateDropCmd represents the migrate drop command
 var reallyMigrateDrop = false
 var migrateDropCmd = &cobra.Command{
@@ -132,6 +168,10 @@ func init() {
 
 	migrateCmd.AddCommand(migrateDownCmd)
 	migrateDownCmd.Flags().BoolVar(&reallyMigrateDown, "yes", false, "really revert all migrations?")
+
+	migrateCmd.AddCommand(migrateForceCommand)
+
+	migrateCmd.AddCommand(migrateVersionCommand)
 
 	migrateCmd.AddCommand(migrateDropCmd)
 	migrateDropCmd.Flags().BoolVar(&reallyMigrateDrop, "yes", false, "really drop your whole database?")
