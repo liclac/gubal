@@ -22,55 +22,98 @@ func TestFetchCharacterJob(t *testing.T) {
 			LastName:  "Hawke",
 		},
 	}
-	phases := []struct {
-		Name         string
-		HasTombstone bool
-	}{
-		{"Found", false},
-		{"Tombstone", true},
-	}
 	for html, expect := range testdata {
 		t.Run(expect.FirstName+" "+expect.LastName, func(t *testing.T) {
-			for _, phase := range phases {
-				t.Run(phase.Name, func(t *testing.T) {
-					testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-						fmt.Fprint(rw, html)
-					}))
-					realLodestoneBaseURL := LodestoneBaseURL
-					LodestoneBaseURL = testsrv.URL
-					defer func() {
-						testsrv.Close()
-						LodestoneBaseURL = realLodestoneBaseURL
-					}()
+			testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+				fmt.Fprint(rw, html)
+			}))
+			realLodestoneBaseURL := LodestoneBaseURL
+			LodestoneBaseURL = testsrv.URL
+			defer func() {
+				testsrv.Close()
+				LodestoneBaseURL = realLodestoneBaseURL
+			}()
 
-					ctrl := gomock.NewController(t)
-					defer ctrl.Finish()
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-					ds := models.NewMockDataStore(ctrl)
+			ds := models.NewMockDataStore(ctrl)
 
-					ctx := context.Background()
-					ctx = models.WithDataStore(ctx, ds)
+			ctx := context.Background()
+			ctx = models.WithDataStore(ctx, ds)
 
-					var calls []*gomock.Call
-					{
-						calls = append(calls, ds.CharacterTombstoneStore.EXPECT().Check(expect.ID).Return(phase.HasTombstone, nil))
+			characterToSave := expect
+			characterToSave.ID = 0
+			gomock.InOrder(
+				ds.CharacterTombstoneStore.EXPECT().Check(expect.ID).Return(false, nil),
+				ds.CharacterStore.EXPECT().Save(&characterToSave).Return(nil),
+			)
 
-						if !phase.HasTombstone {
-							characterToSave := expect
-							characterToSave.ID = 0
-							calls = append(calls, ds.CharacterStore.EXPECT().Save(&characterToSave).Return(nil))
-						}
-					}
-					gomock.InOrder(calls...)
-
-					job := FetchCharacterJob{ID: fmt.Sprint(expect.ID)}
-					jobs, err := job.Run(ctx)
-					require.NoError(t, err)
-					assert.Len(t, jobs, 0)
-				})
-			}
+			job := FetchCharacterJob{ID: fmt.Sprint(expect.ID)}
+			jobs, err := job.Run(ctx)
+			require.NoError(t, err)
+			assert.Len(t, jobs, 0)
 		})
 	}
+}
+
+func TestFetchCharacterJobHasTombstone(t *testing.T) {
+	testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		require.FailNow(t, "THOU SHALT NOT MAKE REQUESTS")
+	}))
+	realLodestoneBaseURL := LodestoneBaseURL
+	LodestoneBaseURL = testsrv.URL
+	defer func() {
+		testsrv.Close()
+		LodestoneBaseURL = realLodestoneBaseURL
+	}()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ds := models.NewMockDataStore(ctrl)
+
+	ctx := context.Background()
+	ctx = models.WithDataStore(ctx, ds)
+
+	id := int64(1234)
+	ds.CharacterTombstoneStore.EXPECT().Check(id).Return(true, nil)
+
+	job := FetchCharacterJob{ID: fmt.Sprint(id)}
+	jobs, err := job.Run(ctx)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 0)
+}
+
+func TestFetchCharacterJobNotFound(t *testing.T) {
+	testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rw.WriteHeader(http.StatusNotFound)
+	}))
+	realLodestoneBaseURL := LodestoneBaseURL
+	LodestoneBaseURL = testsrv.URL
+	defer func() {
+		testsrv.Close()
+		LodestoneBaseURL = realLodestoneBaseURL
+	}()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ds := models.NewMockDataStore(ctrl)
+
+	ctx := context.Background()
+	ctx = models.WithDataStore(ctx, ds)
+
+	id := int64(1234)
+	gomock.InOrder(
+		ds.CharacterTombstoneStore.EXPECT().Check(id).Return(false, nil),
+		ds.CharacterTombstoneStore.EXPECT().Create(id).Return(nil),
+	)
+
+	job := FetchCharacterJob{ID: fmt.Sprint(id)}
+	jobs, err := job.Run(ctx)
+	require.NoError(t, err)
+	assert.Len(t, jobs, 0)
 }
 
 const testHTMLEmiHawke = `<!DOCTYPE html>
