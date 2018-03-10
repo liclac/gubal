@@ -20,6 +20,7 @@ func TestFetchCharacterJob(t *testing.T) {
 			ID:        7248246,
 			FirstName: "Emi",
 			LastName:  "Hawke",
+			Title:     &models.CharacterTitle{Title: "Khloe's Friend"},
 		},
 	}
 	for html, expect := range testdata {
@@ -42,12 +43,17 @@ func TestFetchCharacterJob(t *testing.T) {
 			ctx := context.Background()
 			ctx = models.WithDataStore(ctx, ds)
 
-			characterToSave := expect
-			characterToSave.ID = 0
-			gomock.InOrder(
-				ds.CharacterTombstoneStore.EXPECT().Check(expect.ID).Return(false, nil),
-				ds.CharacterStore.EXPECT().Save(&characterToSave).Return(nil),
-			)
+			var calls []*gomock.Call
+			{
+				calls = append(calls, ds.CharacterTombstoneStore.EXPECT().Check(expect.ID).Return(false, nil))
+
+				if expect.Title != nil {
+					calls = append(calls, ds.CharacterTitleStore.EXPECT().GetOrCreate(expect.Title.Title).Return(expect.Title, nil))
+				}
+
+				calls = append(calls, ds.CharacterStore.EXPECT().Save(&expect).Return(nil))
+			}
+			gomock.InOrder(calls...)
 
 			job := FetchCharacterJob{ID: fmt.Sprint(expect.ID)}
 			jobs, err := job.Run(ctx)

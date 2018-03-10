@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
@@ -69,7 +71,7 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 		// All quiet on the response front.
 	case http.StatusNotFound:
 		// The character doesn't exist, create a tombstone in the database to mark this and abort.
-		lib.GetLogger(ctx).Warn("Character does not exist", zap.Int64("id", id))
+		lib.GetLogger(ctx).Info("Character does not exist; creating tombstone", zap.Int64("id", id))
 		return nil, ds.CharacterTombstones().Create(id)
 	default:
 		return nil, errors.Errorf("incorrect HTTP status code when fetching character data: %d", resp.StatusCode)
@@ -82,9 +84,10 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 		return nil, err
 	}
 
-	var char models.Character
+	char := models.Character{ID: id}
 	if err := multierr.Combine(
-		j.parseName(&char, doc),
+		j.parseName(ctx, &char, doc),
+		j.parseTitle(ctx, &char, doc),
 	); err != nil {
 		return nil, err
 	}
@@ -93,7 +96,7 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 }
 
 // parseName parses the character's FirstName and LastName from the page.
-func (FetchCharacterJob) parseName(ch *models.Character, doc *goquery.Document) error {
+func (FetchCharacterJob) parseName(ctx context.Context, ch *models.Character, doc *goquery.Document) error {
 	fullName := strings.TrimSpace(doc.Find(".frame__chara__name").First().Text())
 	firstAndLast := strings.SplitN(fullName, " ", 2)
 	if l := len(firstAndLast); l != 2 {
@@ -102,4 +105,17 @@ func (FetchCharacterJob) parseName(ch *models.Character, doc *goquery.Document) 
 	ch.FirstName = firstAndLast[0]
 	ch.LastName = firstAndLast[1]
 	return nil
+}
+
+// parseTitle parses the character's title from the page; titles are stored externally.
+func (FetchCharacterJob) parseTitle(ctx context.Context, ch *models.Character, doc *goquery.Document) error {
+	titleStr := strings.TrimSpace(doc.Find(".frame__chara__title").First().Text())
+	if titleStr == "" {
+		ch.Title = nil
+		ch.TitleID = null.Int{}
+		return nil
+	}
+	title, err := models.GetDataStore(ctx).CharacterTitles().GetOrCreate(titleStr)
+	ch.Title = title
+	return err
 }

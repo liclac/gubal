@@ -3,13 +3,15 @@ package models
 import (
 	"time"
 
+	"gopkg.in/guregu/null.v3"
+
 	"github.com/jinzhu/gorm"
 )
 
 //go:generate mockgen -package=models -source=character.go -destination=character.mock.go
 
 // characterConflictAssignments is the update string to be passed to an ON CONFLICT DO UPDATE clause.
-var characterConflictAssignments = buildConflictAssignments(Character{}, true)
+var characterConflictAssignments = buildConflictAssignments(Character{}, true, "title")
 
 // A Character represents an FFXIV player character.
 type Character struct {
@@ -19,6 +21,9 @@ type Character struct {
 
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
+
+	Title   *CharacterTitle `json:"title" gorm:"association_autoupdate:false"`
+	TitleID null.Int        `json:"title_id"`
 }
 
 // A CharacterStore is a data access layer for Characters.
