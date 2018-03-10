@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -32,7 +31,7 @@ var fetchCharCmd = &cobra.Command{
 
 		var bodies [][]byte
 		for id := startID; id < startID+num; id++ {
-			job := fetcher.FetchCharacterJob{ID: fmt.Sprint(id)}
+			job := fetcher.FetchCharacterJob{ID: id}
 			msg := fetcher.FetchMessage{Job: job}
 			body, err := json.Marshal(msg)
 			if err != nil {

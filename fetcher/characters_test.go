@@ -55,7 +55,7 @@ func TestFetchCharacterJob(t *testing.T) {
 			}
 			gomock.InOrder(calls...)
 
-			job := FetchCharacterJob{ID: fmt.Sprint(expect.ID)}
+			job := FetchCharacterJob{ID: expect.ID}
 			jobs, err := job.Run(ctx)
 			require.NoError(t, err)
 			assert.Len(t, jobs, 0)
@@ -85,7 +85,7 @@ func TestFetchCharacterJobHasTombstone(t *testing.T) {
 	id := int64(1234)
 	ds.CharacterTombstoneStore.EXPECT().Check(id).Return(true, nil)
 
-	job := FetchCharacterJob{ID: fmt.Sprint(id)}
+	job := FetchCharacterJob{ID: id}
 	jobs, err := job.Run(ctx)
 	require.NoError(t, err)
 	assert.Len(t, jobs, 0)
@@ -116,7 +116,7 @@ func TestFetchCharacterJobNotFound(t *testing.T) {
 		ds.CharacterTombstoneStore.EXPECT().Create(id).Return(nil),
 	)
 
-	job := FetchCharacterJob{ID: fmt.Sprint(id)}
+	job := FetchCharacterJob{ID: id}
 	jobs, err := job.Run(ctx)
 	require.NoError(t, err)
 	assert.Len(t, jobs, 0)

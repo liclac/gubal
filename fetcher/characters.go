@@ -3,9 +3,9 @@ package fetcher
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -23,8 +23,8 @@ func init() { registerJob(func() Job { return &FetchCharacterJob{} }) }
 // FetchCharacterJob fetches a character.
 // A character that isn't found instead creates a CharacterTombstone in the database to signal this.
 type FetchCharacterJob struct {
-	ID    string `json:"id"`
-	Force bool   `json:"force"`
+	ID    int64 `json:"id"`
+	Force bool  `json:"force"`
 }
 
 // Type returns the type for a job.
@@ -34,20 +34,14 @@ func (FetchCharacterJob) Type() string { return "character" }
 func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	ds := models.GetDataStore(ctx)
 
-	// Make sure only to request proper numbers as IDs.
-	id, err := strconv.ParseInt(j.ID, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-
 	// Check if the character has a tombstone, bail out if so.
-	dead, err := ds.CharacterTombstones().Check(id)
+	dead, err := ds.CharacterTombstones().Check(j.ID)
 	if dead || err != nil {
 		return nil, err
 	}
 
 	// Read the character's public status page.
-	req, err := http.NewRequest("GET", LodestoneBaseURL+"/character/"+j.ID+"/", nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/character/%d/", LodestoneBaseURL, j.ID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -70,8 +64,8 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 		// All quiet on the response front.
 	case http.StatusNotFound:
 		// The character doesn't exist, create a tombstone in the database to mark this and abort.
-		lib.GetLogger(ctx).Info("Character does not exist; creating tombstone", zap.Int64("id", id))
-		return nil, ds.CharacterTombstones().Create(id)
+		lib.GetLogger(ctx).Info("Character does not exist; creating tombstone", zap.Int64("id", j.ID))
+		return nil, ds.CharacterTombstones().Create(j.ID)
 	default:
 		return nil, errors.Errorf("incorrect HTTP status code when fetching character data: %d", resp.StatusCode)
 	}
@@ -83,7 +77,7 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 		return nil, err
 	}
 
-	char := models.Character{ID: id}
+	char := models.Character{ID: j.ID}
 	if err := multierr.Combine(
 		j.parseName(ctx, &char, doc),
 		j.parseTitle(ctx, &char, doc),
