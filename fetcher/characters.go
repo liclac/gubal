@@ -8,12 +8,11 @@ import (
 	"strconv"
 	"strings"
 
-	"gopkg.in/guregu/null.v3"
-
 	"github.com/PuerkitoBio/goquery"
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
+	"gopkg.in/guregu/null.v3"
 
 	"github.com/liclac/gubal/lib"
 	"github.com/liclac/gubal/models"
