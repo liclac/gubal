@@ -9,6 +9,8 @@ import (
 	_ "github.com/mattes/migrate/source/file"
 )
 
+//go:generate go generate ./models
+
 func main() {
 	cmd.Execute()
 }

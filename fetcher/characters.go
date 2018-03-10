@@ -31,7 +31,7 @@ func (FetchCharacterJob) Type() string { return "character" }
 
 // Run runs the job.
 func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
-	db := lib.GetDB(ctx)
+	ds := models.GetDataStore(ctx)
 
 	// Make sure only to request proper numbers as IDs.
 	id, err := strconv.ParseInt(j.ID, 10, 64)
@@ -40,24 +40,10 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	}
 
 	// Check if the character has a tombstone, bail out if so.
-	var tombstoneCount int
-	if err := db.Model(models.CharacterTombstone{}).Where(models.CharacterTombstone{ID: id}).Count(&tombstoneCount).Error; err != nil {
+	dead, err := ds.CharacterTombstones().Check(id)
+	if dead || err != nil {
 		return nil, err
 	}
-	if tombstoneCount > 0 {
-		return nil, nil
-	}
-
-	// Run in a transaction.
-	db = db.Begin()
-	ctx = lib.WithDB(ctx, db)
-	defer func() {
-		if rerr != nil {
-			rerr = multierr.Append(rerr, db.Rollback().Error)
-		} else {
-			rerr = db.Commit().Error
-		}
-	}()
 
 	// Read the character's public status page.
 	req, err := http.NewRequest("GET", LodestoneBaseURL+"/character/"+j.ID+"/", nil)
@@ -84,15 +70,9 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	case http.StatusNotFound:
 		// The character doesn't exist, create a tombstone in the database to mark this and abort.
 		lib.GetLogger(ctx).Warn("Character does not exist", zap.Int64("id", id))
-		return nil, db.Create(&models.CharacterTombstone{ID: id, StatusCode: resp.StatusCode}).Error
+		return nil, ds.CharacterTombstones().Create(id)
 	default:
 		return nil, errors.Errorf("incorrect HTTP status code when fetching character data: %d", resp.StatusCode)
-	}
-
-	// Read our existing data about this character.
-	var char models.Character
-	if err := db.FirstOrCreate(&char, map[string]interface{}{"id": id}).Error; err != nil {
-		return nil, err
 	}
 
 	// Actually parse the page! Parsing steps are split into smaller pieces for maintainability,
@@ -101,13 +81,15 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var char models.Character
 	if err := multierr.Combine(
 		j.parseName(&char, doc),
 	); err != nil {
 		return nil, err
 	}
 
-	return nil, db.Save(&char).Error
+	return nil, ds.Characters().Save(&char)
 }
 
 // parseName parses the character's FirstName and LastName from the page.

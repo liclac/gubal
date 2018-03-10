@@ -15,6 +15,7 @@ import (
 
 	"github.com/liclac/gubal/fetcher"
 	"github.com/liclac/gubal/lib"
+	"github.com/liclac/gubal/models"
 )
 
 // fetcherCmd represents the fetcher command
@@ -39,7 +40,8 @@ var fetcherCmd = &cobra.Command{
 			return err
 		}
 		defer db.Close()
-		ctx = lib.WithDB(ctx, db)
+		ctx = lib.WithRawDB(ctx, db)
+		ctx = models.WithDataStore(ctx, models.NewDataStore(db))
 
 		// Connect to NSQ...
 		prod, err := newNSQProducer()

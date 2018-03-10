@@ -11,7 +11,7 @@ type ctxKey string
 
 const (
 	ctxKeyLogger ctxKey = "logger"
-	ctxKeyDB     ctxKey = "db"
+	ctxKeyRawDB  ctxKey = "raw_db"
 )
 
 // GetLogger returns the logger associated with the context. If no logger has been attached
@@ -34,13 +34,13 @@ func WithNamedLogger(ctx context.Context, name string) context.Context {
 	return WithLogger(ctx, GetLogger(ctx).Named(name))
 }
 
-// GetDB returns the GORM DB associated with the context, or nil.
-func GetDB(ctx context.Context) *gorm.DB {
-	db, _ := ctx.Value(ctxKeyDB).(*gorm.DB)
+// GetRawDB returns the GORM DB associated with the context, or nil.
+func GetRawDB(ctx context.Context) *gorm.DB {
+	db, _ := ctx.Value(ctxKeyRawDB).(*gorm.DB)
 	return db
 }
 
-// WithDB returns a context with the given DB attached.
-func WithDB(ctx context.Context, db *gorm.DB) context.Context {
-	return context.WithValue(ctx, ctxKeyDB, db)
+// WithRawDB returns a context with the given DB attached.
+func WithRawDB(ctx context.Context, db *gorm.DB) context.Context {
+	return context.WithValue(ctx, ctxKeyRawDB, db)
 }

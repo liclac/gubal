@@ -2,44 +2,38 @@ package fetcher
 
 import (
 	"context"
-	"database/sql/driver"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
 
-	"github.com/liclac/gubal/lib"
+	"github.com/golang/mock/gomock"
 	"github.com/liclac/gubal/models"
 )
 
 func TestFetchCharacterJob(t *testing.T) {
 	testdata := map[string]models.Character{
-		testHTMLEmiHawke: {
+		testHTMLEmiHawke: models.Character{
 			ID:        7248246,
 			FirstName: "Emi",
 			LastName:  "Hawke",
 		},
 	}
 	phases := []struct {
-		Name     string
-		Existing bool
+		Name         string
+		HasTombstone bool
 	}{
-		{"Insert", false},
-		{"Update", true},
+		{"Found", false},
+		{"Tombstone", true},
 	}
-	for html, expected := range testdata {
-		testName := fmt.Sprintf("%d_%s_%s", expected.ID, expected.FirstName, expected.LastName)
-		t.Run(testName, func(t *testing.T) {
+	for html, expect := range testdata {
+		t.Run(expect.FirstName+" "+expect.LastName, func(t *testing.T) {
 			for _, phase := range phases {
 				t.Run(phase.Name, func(t *testing.T) {
 					testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-						require.Equal(t, fmt.Sprintf("/character/%d/", expected.ID), req.URL.Path)
-						require.Equal(t, UserAgent, req.Header.Get("User-Agent"))
 						fmt.Fprint(rw, html)
 					}))
 					realLodestoneBaseURL := LodestoneBaseURL
@@ -49,157 +43,34 @@ func TestFetchCharacterJob(t *testing.T) {
 						LodestoneBaseURL = realLodestoneBaseURL
 					}()
 
-					mockdb, mock, err := sqlmock.New()
-					require.NoError(t, err)
+					ctrl := gomock.NewController(t)
+					defer ctrl.Finish()
 
-					db, err := gorm.Open("postgres", mockdb)
-					require.NoError(t, err)
+					ds := models.NewMockDataStore(ctrl)
 
 					ctx := context.Background()
-					ctx = lib.WithDB(ctx, db)
+					ctx = models.WithDataStore(ctx, ds)
 
-					allColumns := []string{"id", "created_at", "updated_at", "first_name", "last_name"}
-					allValues := []driver.Value{expected.ID, expected.CreatedAt, expected.UpdatedAt, expected.FirstName, expected.LastName}
-
-					// The job starts by checking if there's a tombstone.
-					// We're testing tombstones separately, ignore them here.
-					mock.ExpectQuery(
-						`SELECT count\(\*\) FROM "character_tombstones" WHERE \("character_tombstones"."id" = \$1\)`,
-					).WithArgs(expected.ID).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-
-					// The rest of the job runs in a transaction.
-					mock.ExpectBegin()
+					var calls []*gomock.Call
 					{
-						// It checks if there's an existing record; depending on the phase, we
-						// return either nothing, or the old (= expected) record.
-						existingRows := sqlmock.NewRows(allColumns)
-						if phase.Existing {
-							existingRows.AddRow(allValues...)
-						}
-						mock.ExpectQuery(
-							`SELECT \* FROM "characters" WHERE \("characters"."id" = \$1\) ORDER BY "characters"."id" ASC LIMIT 1`,
-						).WithArgs(expected.ID).WillReturnRows(existingRows)
+						calls = append(calls, ds.CharacterTombstoneStore.EXPECT().Check(expect.ID).Return(phase.HasTombstone, nil))
 
-						// If the previous query returns no rows, gorm does an insert.
-						if !phase.Existing {
-							mock.ExpectQuery(
-								`INSERT INTO "characters" \("id","created_at","updated_at","first_name","last_name"\) VALUES \(\$1,\$2,\$3,\$4,\$5\) RETURNING "characters"."id"`,
-							).WithArgs(
-								expected.ID,
-								sqlmock.AnyArg(),
-								sqlmock.AnyArg(),
-								"",
-								"",
-							).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(expected.ID))
+						if !phase.HasTombstone {
+							characterToSave := expect
+							characterToSave.ID = 0
+							calls = append(calls, ds.CharacterStore.EXPECT().Save(&characterToSave).Return(nil))
 						}
-
-						// Finally, the record is updated. This could definitely be optimised away.
-						mock.ExpectExec(
-							`UPDATE "characters" SET "created_at" = \$1, "updated_at" = \$2, "first_name" = \$3, "last_name" = \$4 WHERE "characters"."id" = \$5`,
-						).WithArgs(
-							sqlmock.AnyArg(),
-							sqlmock.AnyArg(),
-							expected.FirstName,
-							expected.LastName,
-							expected.ID,
-						).WillReturnResult(sqlmock.NewResult(expected.ID, 1))
 					}
-					mock.ExpectCommit()
+					gomock.InOrder(calls...)
 
-					job := FetchCharacterJob{ID: fmt.Sprint(expected.ID)}
+					job := FetchCharacterJob{ID: fmt.Sprint(expect.ID)}
 					jobs, err := job.Run(ctx)
 					require.NoError(t, err)
 					assert.Len(t, jobs, 0)
-					assert.NoError(t, mock.ExpectationsWereMet())
 				})
 			}
 		})
 	}
-
-	t.Run("NotFound", func(t *testing.T) {
-		id := int64(3)
-
-		testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			rw.WriteHeader(http.StatusNotFound)
-		}))
-		realLodestoneBaseURL := LodestoneBaseURL
-		LodestoneBaseURL = testsrv.URL
-		defer func() {
-			testsrv.Close()
-			LodestoneBaseURL = realLodestoneBaseURL
-		}()
-
-		mockdb, mock, err := sqlmock.New()
-		require.NoError(t, err)
-
-		db, err := gorm.Open("postgres", mockdb)
-		require.NoError(t, err)
-
-		ctx := context.Background()
-		ctx = lib.WithDB(ctx, db)
-
-		// The job starts by checking if there's a tombstone.
-		// There's none yet, but we're about to create one.
-		mock.ExpectQuery(
-			`SELECT count\(\*\) FROM "character_tombstones" WHERE \("character_tombstones"."id" = \$1\)`,
-		).WithArgs(id).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-
-		// The rest of the job runs in a transaction.
-		mock.ExpectBegin()
-		{
-			// The page will 404, so a tombstone is created.
-			mock.ExpectQuery(
-				`INSERT INTO "character_tombstones" \("id","created_at","status_code"\) VALUES \(\$1,\$2,\$3\) RETURNING "character_tombstones"."id"`,
-			).WithArgs(
-				id,
-				sqlmock.AnyArg(),
-				http.StatusNotFound,
-			).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(id))
-		}
-		mock.ExpectCommit()
-
-		job := FetchCharacterJob{ID: fmt.Sprint(id)}
-		jobs, err := job.Run(ctx)
-		require.NoError(t, err)
-		assert.Len(t, jobs, 0)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
-
-	t.Run("Tombstone", func(t *testing.T) {
-		id := int64(3)
-
-		// Crash the test if any lodestone requests are actually sent.
-		testsrv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			require.FailNow(t, "no http requests should be made here")
-		}))
-		realLodestoneBaseURL := LodestoneBaseURL
-		LodestoneBaseURL = testsrv.URL
-		defer func() {
-			testsrv.Close()
-			LodestoneBaseURL = realLodestoneBaseURL
-		}()
-
-		mockdb, mock, err := sqlmock.New()
-		require.NoError(t, err)
-
-		db, err := gorm.Open("postgres", mockdb)
-		require.NoError(t, err)
-
-		ctx := context.Background()
-		ctx = lib.WithDB(ctx, db)
-
-		// The job starts by checking if there's a tombstone.
-		// We're signalling that there is one, so the job should bail out.
-		mock.ExpectQuery(
-			`SELECT count\(\*\) FROM "character_tombstones" WHERE \("character_tombstones"."id" = \$1\)`,
-		).WithArgs(id).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
-
-		job := FetchCharacterJob{ID: fmt.Sprint(id)}
-		jobs, err := job.Run(ctx)
-		require.NoError(t, err)
-		assert.Len(t, jobs, 0)
-		assert.NoError(t, mock.ExpectationsWereMet())
-	})
 }
 
 const testHTMLEmiHawke = `<!DOCTYPE html>
