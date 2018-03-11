@@ -33,6 +33,15 @@ def build_race_chart(**kwargs):
     df = pd.read_sql('SELECT race, COUNT(*) FROM characters GROUP BY race ORDER BY race DESC', db.engine, index_col='race')
     return go.Pie(labels=df.index.tolist(), values=df['count'], **kwargs)
 
+def build_race_clan_chart(**kwargs):
+    df = pd.read_sql('SELECT race, COUNT(*) FROM characters GROUP BY race ORDER BY race DESC', db.engine)
+    print(df['count'].tolist())
+    return go.Bar(
+        x=df['race'].tolist(),
+        y=df['count'].tolist(),
+        **kwargs,
+    )
+
 def build_layout():
     return html.Div([
         html.Div([
@@ -62,6 +71,13 @@ def build_layout():
                     layout=go.Layout(title="Race"),
                 ),
                 className='col-sm-6',
+            ),
+        ], className='row', style={'min-height': '500px'}),
+        html.Div([
+            dcc.Graph(
+                id="race-clan-chart",
+                figure=go.Figure(data=[build_race_clan_chart()]),
+                className='col-sm-12',
             ),
         ], className='row', style={'min-height': '500px'}),
     ], className='container')
