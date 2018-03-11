@@ -20,6 +20,9 @@ func TestFetchCharacterJob(t *testing.T) {
 			ID:        7248246,
 			FirstName: "Emi",
 			LastName:  "Hawke",
+			Race:      models.AuRa,
+			Clan:      models.AuRaRaen,
+			Gender:    "♀",
 			Title:     &models.CharacterTitle{Title: "Khloe's Friend"},
 		},
 	}

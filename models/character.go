@@ -19,8 +19,11 @@ type Character struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
+	FirstName string        `json:"first_name"`
+	LastName  string        `json:"last_name"`
+	Race      CharacterRace `json:"race"`
+	Clan      CharacterClan `json:"clan"`
+	Gender    string        `json:"gender"`
 
 	Title   *CharacterTitle `json:"title" gorm:"association_autoupdate:false"`
 	TitleID null.Int        `json:"title_id"`
