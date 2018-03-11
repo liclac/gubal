@@ -12,6 +12,7 @@ func buildConflictAssignments(mod interface{}, excludeID bool, exclude ...string
 	if excludeID {
 		exclude = append(exclude, "id")
 	}
+	exclude = append(exclude, "created_at", "deleted_at")
 
 	cols := walkColumnNames(reflect.TypeOf(mod), exclude...)
 	for i, col := range cols {
