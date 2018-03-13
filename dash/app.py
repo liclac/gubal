@@ -34,13 +34,18 @@ def build_race_chart(**kwargs):
     return go.Pie(labels=df.index.tolist(), values=df['count'], **kwargs)
 
 def build_race_clan_chart(**kwargs):
-    df = pd.read_sql('SELECT race, COUNT(*) FROM characters GROUP BY race ORDER BY race DESC', db.engine)
-    print(df['count'].tolist())
-    return go.Bar(
-        x=df['race'].tolist(),
-        y=df['count'].tolist(),
-        **kwargs,
-    )
+    df = pd.read_sql('SELECT race, clan, COUNT(*) FROM characters GROUP BY race, clan ORDER BY race, clan DESC', db.engine, index_col=['race', 'clan'])
+    races = df.index.get_level_values('race').get_duplicates()
+    counts = [[], []]
+    texts = [[], []]
+    for race in races:
+        clans = df.loc[race]
+        for i, clan in enumerate(clans.index.values):
+            data = clans.loc[clan]
+            texts[i].append(clan)
+            counts[i].append(data['count'])
+    traces = [go.Bar(x=races, y=counts[i], text=texts[i], **kwargs) for i in range(2)]
+    return traces[0], traces[1]
 
 def build_layout():
     return html.Div([
@@ -76,7 +81,17 @@ def build_layout():
         html.Div([
             dcc.Graph(
                 id="race-clan-chart",
-                figure=go.Figure(data=[build_race_clan_chart()]),
+                figure=go.Figure(
+                    data=[*build_race_clan_chart(
+                        showlegend=False,
+                        hoverinfo='y+text',
+                        textposition='outside',
+                    )],
+                    layout=go.Layout(
+                        title="Clans",
+                        # barmode='stack',
+                    ),
+                ),
                 className='col-sm-12',
             ),
         ], className='row', style={'min-height': '500px'}),
