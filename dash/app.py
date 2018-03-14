@@ -36,9 +36,7 @@ def build_table(df, **kwargs):
         ]),
         html.Tbody([
             html.Tr([
-                html.Td([
-                    df.iloc[i][col]
-                ]) for col in df.columns
+                html.Td([df.iloc[i][col]]) for col in df.columns
             ]) for i in range(len(df))
         ]),
     ], **kwargs)
