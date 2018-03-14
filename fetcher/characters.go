@@ -217,8 +217,45 @@ func (j FetchCharacterJob) parseGrandCompanyBlock(ctx context.Context, ch *model
 	if l := len(parts); l != 2 {
 		return errors.Errorf("couldn't parse grand company/rank: wrong number of items: %d", l)
 	}
-	gc := trim(parts[0])
-	rank := trim(parts[1])
-	lib.GetLogger(ctx).Info("grand company", zap.String("gc", gc), zap.String("rank", rank))
+	gcName := trim(parts[0])
+	rankName := trim(parts[1])
+	lib.GetLogger(ctx).Info("grand company", zap.String("gc_name", gcName), zap.String("rank_name", rankName))
+
+	switch gcName {
+	case "Maelstrom":
+		gc := models.Maelstrom
+		ch.GC = &gc
+	case "Order of the Twin Adder":
+		gc := models.Adders
+		ch.GC = &gc
+	case "Immortal Flames":
+		gc := models.Flames
+		ch.GC = &gc
+	}
+
+	switch {
+	case rankName == "":
+	case strings.HasSuffix(rankName, "Private Third Class"):
+		ch.GCRank = 1
+	case strings.HasSuffix(rankName, "Private Second Class"):
+		ch.GCRank = 2
+	case strings.HasSuffix(rankName, "Private First Class"):
+		ch.GCRank = 3
+	case strings.HasSuffix(rankName, "Corporal"):
+		ch.GCRank = 4
+	case strings.HasSuffix(rankName, "Sergeant Third Class"):
+		ch.GCRank = 5
+	case strings.HasSuffix(rankName, "Sergeant Second Class"):
+		ch.GCRank = 6
+	case strings.HasSuffix(rankName, "Sergeant First Class"):
+		ch.GCRank = 7
+	case strings.HasPrefix(rankName, "Chief") && strings.HasSuffix(rankName, "Sergeant"):
+		ch.GCRank = 8
+	case strings.HasPrefix(rankName, "Second") && strings.HasSuffix(rankName, "Lieutenant"):
+		ch.GCRank = 9
+	case strings.HasPrefix(rankName, "First") && strings.HasSuffix(rankName, "Lieutenant"):
+		ch.GCRank = 10
+	}
+
 	return nil
 }

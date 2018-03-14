@@ -27,6 +27,9 @@ type Character struct {
 
 	Title   *CharacterTitle `json:"title" gorm:"association_autoupdate:false"`
 	TitleID null.Int        `json:"title_id"`
+
+	GC     *GrandCompany `json:"gc" gorm:"gc"`
+	GCRank int           `json:"gc_rank" gorm:"gc_rank"`
 }
 
 // A CharacterStore is a data access layer for Characters.
