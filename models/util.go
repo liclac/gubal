@@ -10,7 +10,7 @@ import (
 
 func buildConflictAssignments(mod interface{}, excludeID bool, exclude ...string) string {
 	if excludeID {
-		exclude = append(exclude, "id")
+		exclude = append(exclude, "id", "primary_key")
 	}
 	exclude = append(exclude, "created_at", "deleted_at")
 
@@ -35,6 +35,12 @@ fieldLoop:
 			continue
 		}
 		name := gorm.ToDBName(f.Name)
+		for _, part := range strings.Split(f.Tag.Get("gorm"), ";") {
+			pfx := "column:"
+			if strings.HasPrefix(part, pfx) {
+				name = strings.TrimPrefix(part, pfx)
+			}
+		}
 		for _, exclusion := range exclude {
 			if name == exclusion {
 				continue fieldLoop
