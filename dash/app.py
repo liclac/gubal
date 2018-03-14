@@ -11,6 +11,8 @@ app.server.config['SQLALCHEMY_DATABASE_URI'] = 'postgres:///gubal'
 app.server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app.server)
 
+
+
 # Load Bootstrap
 app.css.append_css({
     "external_url": "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css",
@@ -25,6 +27,16 @@ app.scripts.append_script({
     "external_url": "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js",
 })
 
+
+
+# Helper for building lists in the form [[obj1, obj2], [obj1, obj2], ...].
+def append_at(l, i, item):
+    while len(l) <= i:
+        l.append([])
+    l[i].append(item)
+
+
+
 def build_gender_chart(**kwargs):
     df = pd.read_sql('SELECT gender, COUNT(*) FROM characters GROUP BY gender ORDER BY gender DESC', db.engine, index_col='gender')
     return go.Pie(labels=df.index.tolist(), values=df['count'], **kwargs)
@@ -33,19 +45,18 @@ def build_race_chart(**kwargs):
     df = pd.read_sql('SELECT race, COUNT(*) FROM characters GROUP BY race ORDER BY race DESC', db.engine, index_col='race')
     return go.Pie(labels=df.index.tolist(), values=df['count'], **kwargs)
 
-def build_race_clan_chart(**kwargs):
-    df = pd.read_sql('SELECT race, clan, COUNT(*) FROM characters GROUP BY race, clan ORDER BY race, clan DESC', db.engine, index_col=['race', 'clan'])
-    races = df.index.get_level_values('race').get_duplicates()
-    counts = [[], []]
-    texts = [[], []]
+def build_race_clan_gender_chart(**kwargs):
+    df = pd.read_sql('SELECT race, clan, gender, COUNT(*) FROM characters GROUP BY race, clan, gender ORDER BY race, clan, gender DESC', db.engine, index_col=['race', 'clan', 'gender'])
+
+    # TODO: clean up this mess
+    races = df.index.get_level_values('race').unique()
+    series = [{"y": [], "text": []} for i in range(4)]
     for race in races:
-        clans = df.loc[race]
-        for i, clan in enumerate(clans.index.values):
-            data = clans.loc[clan]
-            texts[i].append(clan)
-            counts[i].append(data['count'])
-    traces = [go.Bar(x=races, y=counts[i], text=texts[i], **kwargs) for i in range(2)]
-    return traces[0], traces[1]
+        race_data = df.loc[race]
+        for i, clan_and_gender in enumerate(race_data.index.values):
+            series[i]["text"].append(" ".join(clan_and_gender))
+            series[i]["y"].append(race_data.loc[clan_and_gender]['count'])
+    return [go.Bar(x=races, **s, **kwargs) for s in series]
 
 def build_layout():
     return html.Div([
@@ -80,17 +91,14 @@ def build_layout():
         ], className='row', style={'min-height': '500px'}),
         html.Div([
             dcc.Graph(
-                id="race-clan-chart",
+                id="race-clan-gender-chart",
                 figure=go.Figure(
-                    data=[*build_race_clan_chart(
+                    data=[*build_race_clan_gender_chart(
                         showlegend=False,
                         hoverinfo='y+text',
-                        textposition='outside',
+                        textposition='auto',
                     )],
-                    layout=go.Layout(
-                        title="Clans",
-                        # barmode='stack',
-                    ),
+                    layout=go.Layout(title="Breakdown", barmode='group'),
                 ),
                 className='col-sm-12',
             ),
