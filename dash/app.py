@@ -6,6 +6,8 @@ import plotly.graph_objs as go
 from flask_sqlalchemy import SQLAlchemy
 import pandas as pd
 
+TABLE_CLASSES = 'table table-hover table-sm'
+
 app = dash.Dash()
 app.server.config['SQLALCHEMY_DATABASE_URI'] = 'postgres:///gubal'
 app.server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -27,15 +29,19 @@ app.scripts.append_script({
     "external_url": "https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js",
 })
 
-
-
-# Helper for building lists in the form [[obj1, obj2], [obj1, obj2], ...].
-def append_at(l, i, item):
-    while len(l) <= i:
-        l.append([])
-    l[i].append(item)
-
-
+def build_table(df, **kwargs):
+    return html.Table([
+        html.Thead([
+            html.Tr([html.Th(col) for col in df.columns]),
+        ]),
+        html.Tbody([
+            html.Tr([
+                html.Td([
+                    df.iloc[i][col]
+                ]) for col in df.columns
+            ]) for i in range(len(df))
+        ]),
+    ], **kwargs)
 
 def build_gender_chart(**kwargs):
     df = pd.read_sql('SELECT gender, COUNT(*) FROM characters GROUP BY gender ORDER BY gender DESC', db.engine, index_col='gender')
@@ -57,6 +63,14 @@ def build_race_clan_gender_chart(**kwargs):
             series[i]["text"].append(" ".join(clan_and_gender))
             series[i]["y"].append(race_data.loc[clan_and_gender]['count'])
     return [go.Bar(x=races, **s, **kwargs) for s in series]
+
+def build_title_table(**kwargs):
+    df = pd.read_sql('SELECT title, COUNT(*) FROM characters INNER JOIN character_titles ON characters.title_id = character_titles.id GROUP BY title ORDER BY count DESC LIMIT 10', db.engine)
+    return build_table(df, **kwargs)
+
+def build_top_table(col, limit=10, **kwargs):
+    df = pd.read_sql('SELECT {col}, COUNT(*) FROM characters GROUP BY {col} ORDER BY count DESC LIMIT {limit}'.format(col=col, limit=limit), db.engine)
+    return build_table(df, **kwargs)
 
 def build_layout():
     return html.Div([
@@ -103,6 +117,20 @@ def build_layout():
                 className='col-sm-12',
             ),
         ], className='row', style={'min-height': '500px'}),
+        html.Div([
+            html.Div([
+                html.H5("Top 10 Titles"),
+                build_title_table(className=TABLE_CLASSES),
+            ], className='col-sm-4'),
+            html.Div([
+                html.H5("Top 10 First Names"),
+                build_top_table('first_name', className=TABLE_CLASSES),
+            ], className='col-sm-4'),
+            html.Div([
+                html.H5("Top 10 Last Names"),
+                build_top_table('last_name', className=TABLE_CLASSES),
+            ], className='col-sm-4'),
+        ], className='row'),
     ], className='container')
 
 app.layout = build_layout
