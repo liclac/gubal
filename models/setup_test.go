@@ -4,9 +4,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/mattes/migrate"
-
 	"github.com/jinzhu/gorm"
+	"github.com/mattes/migrate"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	_ "github.com/mattes/migrate/database/postgres"
@@ -35,13 +34,22 @@ func init() {
 	must(err)
 	TestDB = db.LogMode(true).Debug()
 
-	// Drop everything in the database, then bring it back up again
+	// Nuke the entire default schema.
+	must(db.Exec(`DROP SCHEMA IF EXISTS public CASCADE`).Error)
+	must(db.Exec(`CREATE SCHEMA public`).Error)
+
+	// Read migrations...
 	wd, err := os.Getwd()
 	must(err)
 	migr, err := migrate.New("file://"+path.Join(wd, "..", "migrations"), uri)
 	must(err)
-	must(migr.Drop())
+
+	// Migrate up, down, then back up to verify that both ways are working.
 	must(migr.Up())
+	must(migr.Down())
+	must(migr.Up())
+
+	// Finish!
 	srcerr, dberr := migr.Close()
 	must(srcerr)
 	must(dberr)
