@@ -20,17 +20,17 @@ var fetchCharCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		num := int64(1)
+		endID := startID
 		if len(args) > 1 {
-			n, err := strconv.ParseInt(args[1], 10, 64)
+			id, err := strconv.ParseInt(args[1], 10, 64)
 			if err != nil {
 				return err
 			}
-			num = n
+			endID = id
 		}
 
 		var bodies [][]byte
-		for id := startID; id < startID+num; id++ {
+		for id := startID; id <= endID; id++ {
 			job := fetcher.FetchCharacterJob{ID: id}
 			msg := fetcher.FetchMessage{Job: job}
 			body, err := json.Marshal(msg)
