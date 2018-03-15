@@ -6,6 +6,9 @@ type CharacterRace string
 // CharacterClan is a constant type for a character's clan.
 type CharacterClan string
 
+// CharacterGuardian is a constant type for a character's guardian.
+type CharacterGuardian string
+
 // CharacterRace constants.
 const (
 	Hyur     CharacterRace = "Hyur"
@@ -30,4 +33,20 @@ const (
 	RoegadynHellsguard CharacterClan = "Hellsguard"
 	AuRaRaen           CharacterClan = "Raen"
 	AuRaXaela          CharacterClan = "Xaela"
+)
+
+// CharacterGuardian constants.
+const (
+	Halone   CharacterGuardian = "Halone"
+	Menphina CharacterGuardian = "Menphina"
+	Thaliak  CharacterGuardian = "Thaliak"
+	Nymeia   CharacterGuardian = "Nymeia"
+	Llymlaen CharacterGuardian = "Llymlaen"
+	Oschon   CharacterGuardian = "Oschon"
+	Byregot  CharacterGuardian = "Byregot"
+	Rhalgr   CharacterGuardian = "Rhalgr"
+	Azeyma   CharacterGuardian = "Azeyma"
+	Naldthal CharacterGuardian = "Naldthal"
+	Nophica  CharacterGuardian = "Nophica"
+	Althyk   CharacterGuardian = "Althyk"
 )

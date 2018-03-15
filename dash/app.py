@@ -62,6 +62,15 @@ def build_race_clan_gender_chart(**kwargs):
             series[i]["y"].append(race_data.loc[clan_and_gender]['count'])
     return [go.Bar(x=races, **s, **kwargs) for s in series]
 
+def build_gc_chart(**kwargs):
+    df = pd.read_sql('SELECT gc, gc_rank, COUNT(*) FROM characters GROUP BY gc, gc_rank ORDER BY gc, gc_rank ASC', db.engine, index_col=['gc', 'gc_rank'])
+    gcs = list(df.index.get_level_values('gc').unique().dropna())
+    return [go.Area(
+        r=[df['count'].loc[gc].get(i, 0) for gc in gcs],
+        t=gcs,
+        name="Rank {}".format(i+1),
+    ) for i in range(10)]
+
 def build_title_table(**kwargs):
     df = pd.read_sql('SELECT title, COUNT(*) FROM characters INNER JOIN character_titles ON characters.title_id = character_titles.id GROUP BY title ORDER BY count DESC LIMIT 10', db.engine)
     return build_table(df, **kwargs)
@@ -128,6 +137,17 @@ def build_layout():
                 html.H5("Top 10 Last Names"),
                 build_top_table('last_name', className=TABLE_CLASSES),
             ], className='col-sm-4'),
+        ], className='row'),
+        html.Div([
+            html.Div([
+                dcc.Graph(
+                    id="gc-chart",
+                    figure=go.Figure(
+                        data=[*build_gc_chart()],
+                        layout=go.Layout(title="Grand Companies", orientation=270),
+                    ),
+                ),
+            ], className='col-sm-12'),
         ], className='row'),
     ], className='container')
 

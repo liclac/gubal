@@ -200,6 +200,35 @@ func (j FetchCharacterJob) parseNamedayGuardianBlock(ctx context.Context, ch *mo
 	birth := trim(sel.Find(".character-block__birth").Text())
 	guardian := trim(sel.Find(".character-block__profile").Text())
 	lib.GetLogger(ctx).Info("nameday/guardian", zap.String("birth", birth), zap.String("guardian", guardian))
+
+	switch {
+	case strings.HasPrefix(guardian, "Halone"):
+		ch.Guardian = models.Halone
+	case strings.HasPrefix(guardian, "Menphina"):
+		ch.Guardian = models.Menphina
+	case strings.HasPrefix(guardian, "Thaliak"):
+		ch.Guardian = models.Thaliak
+	case strings.HasPrefix(guardian, "Nymeia"):
+		ch.Guardian = models.Nymeia
+	case strings.HasPrefix(guardian, "Llymlaen"):
+		ch.Guardian = models.Llymlaen
+	case strings.HasPrefix(guardian, "Oschon"):
+		ch.Guardian = models.Oschon
+	case strings.HasPrefix(guardian, "Byregot"):
+		ch.Guardian = models.Byregot
+	case strings.HasPrefix(guardian, "Rhalgr"):
+		ch.Guardian = models.Rhalgr
+	case strings.HasPrefix(guardian, "Azeyma"):
+		ch.Guardian = models.Azeyma
+	case strings.HasPrefix(guardian, "Nald'thal"):
+		ch.Guardian = models.Naldthal
+	case strings.HasPrefix(guardian, "Nophica"):
+		ch.Guardian = models.Nophica
+	case strings.HasPrefix(guardian, "Althyk"):
+		ch.Guardian = models.Althyk
+	default:
+		return errors.Errorf("unknown guardian: '%s'", guardian)
+	}
 	return nil
 }
 
