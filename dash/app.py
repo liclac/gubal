@@ -4,6 +4,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 from flask_sqlalchemy import SQLAlchemy
+import numpy as np
 import pandas as pd
 
 TABLE_CLASSES = 'table table-hover table-sm'
@@ -63,13 +64,17 @@ def build_race_clan_gender_chart(**kwargs):
     return [go.Bar(x=races, **s, **kwargs) for s in series]
 
 def build_gc_chart(**kwargs):
+    df = pd.read_sql('SELECT gc, COUNT(*) FROM characters GROUP BY gc ORDER BY gc ASC', db.engine, index_col=['gc'])
+    return go.Pie(labels=df.index.tolist(), values=df['count'], **kwargs)
+
+def build_gc_breakdown(**kwargs):
     df = pd.read_sql('SELECT gc, gc_rank, COUNT(*) FROM characters GROUP BY gc, gc_rank ORDER BY gc, gc_rank ASC', db.engine, index_col=['gc', 'gc_rank'])
     gcs = list(df.index.get_level_values('gc').unique().dropna())
-    return [go.Area(
-        r=[df['count'].loc[gc].get(i, 0) for gc in gcs],
-        t=gcs,
-        name="Rank {}".format(i+1),
-    ) for i in range(10)]
+    return [go.Bar(
+        y=df.loc[gc]['count'],
+        name=gc,
+        **kwargs,
+    ) for gc in gcs]
 
 def build_title_table(**kwargs):
     df = pd.read_sql('SELECT title, COUNT(*) FROM characters INNER JOIN character_titles ON characters.title_id = character_titles.id GROUP BY title ORDER BY count DESC LIMIT 10', db.engine)
@@ -126,6 +131,28 @@ def build_layout():
         ], className='row', style={'min-height': '500px'}),
         html.Div([
             html.Div([
+                dcc.Graph(
+                    id="gc-graph",
+                    figure=go.Figure(
+                        data=[build_gc_chart(
+                            marker=go.Marker(line=go.Line(color='#FFF', width=1)),
+                        )],
+                        layout=go.Layout(title="Grand Companies"),
+                    ),
+                ),
+            ], className='col-sm-4'),
+            html.Div([
+                dcc.Graph(
+                    id="gc-breakdown",
+                    figure=go.Figure(
+                        data=[*build_gc_breakdown()],
+                        layout=go.Layout(title="Grand Company Ranks"),
+                    ),
+                ),
+            ], className='col-sm-8'),
+        ], className='row'),
+        html.Div([
+            html.Div([
                 html.H5("Top 10 Titles"),
                 build_title_table(className=TABLE_CLASSES),
             ], className='col-sm-4'),
@@ -137,17 +164,6 @@ def build_layout():
                 html.H5("Top 10 Last Names"),
                 build_top_table('last_name', className=TABLE_CLASSES),
             ], className='col-sm-4'),
-        ], className='row'),
-        html.Div([
-            html.Div([
-                dcc.Graph(
-                    id="gc-chart",
-                    figure=go.Figure(
-                        data=[*build_gc_chart()],
-                        layout=go.Layout(title="Grand Companies", orientation=270),
-                    ),
-                ),
-            ], className='col-sm-12'),
         ], className='row'),
     ], className='container')
 
