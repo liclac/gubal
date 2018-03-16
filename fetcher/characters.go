@@ -176,8 +176,8 @@ func (j FetchCharacterJob) parseWorld(ctx context.Context, ch *models.Character,
 		ch.World = models.Mandragora
 	case "Masamune":
 		ch.World = models.Masamune
-	case "Pandemonium":
-		ch.World = models.Pandemonium
+	case "Pandaemonium":
+		ch.World = models.Pandaemonium
 	case "Shinryu":
 		ch.World = models.Shinryu
 	case "Titan":
@@ -198,8 +198,8 @@ func (j FetchCharacterJob) parseWorld(ctx context.Context, ch *models.Character,
 		ch.World = models.Goblin
 	case "Jenova":
 		ch.World = models.Jenova
-	case "Maetus":
-		ch.World = models.Maetus
+	case "Mateus":
+		ch.World = models.Mateus
 	case "Midgardsormr":
 		ch.World = models.Midgardsormr
 	case "Sargatanas":
@@ -234,10 +234,14 @@ func (j FetchCharacterJob) parseWorld(ctx context.Context, ch *models.Character,
 		ch.World = models.Cerberus
 	case "Lich":
 		ch.World = models.Lich
+	case "Louisoix":
+		ch.World = models.Louisoix
 	case "Moogle":
 		ch.World = models.Moogle
 	case "Odin":
 		ch.World = models.Odin
+	case "Omega":
+		ch.World = models.Omega
 	case "Phoenix":
 		ch.World = models.Phoenix
 	case "Ragnarok":
