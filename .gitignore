@@ -1,3 +1,6 @@
 /gubal
 /*.dat
 /.*
+
+/cache/*
+!/cache/.gitkeep

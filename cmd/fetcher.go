@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"os"
 	"os/signal"
+	"path"
 	"sync"
 	"time"
 
 	"github.com/nsqio/go-nsq"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -33,6 +35,14 @@ var fetcherCmd = &cobra.Command{
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		// Prepare a cache...
+		wd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		cacheFS := afero.NewBasePathFs(afero.NewOsFs(), path.Join(wd, "cache"))
+		ctx = fetcher.WithCacheFS(ctx, cacheFS)
 
 		// Connect to the database...
 		db, err := dbConnect()

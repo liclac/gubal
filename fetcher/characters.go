@@ -3,9 +3,9 @@ package fetcher
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -34,6 +34,8 @@ func (FetchCharacterJob) Type() string { return "character" }
 func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	ds := models.GetDataStore(ctx)
 
+	idStr := strconv.FormatInt(j.ID, 10)
+
 	// Check if the character has a tombstone, bail out if so.
 	dead, err := ds.CharacterTombstones().Check(j.ID)
 	if dead || err != nil {
@@ -41,12 +43,13 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	}
 
 	// Read the character's public status page.
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/character/%d/", LodestoneBaseURL, j.ID), nil)
+	req, err := http.NewRequest("GET", LodestoneBaseURL+"/character/"+idStr+"/", nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", UserAgent)
-	resp, err := http.DefaultClient.Do(req)
+	// resp, err := http.DefaultClient.Do(req)
+	resp, err := doRequestWithCache(GetCacheFS(ctx), "char_"+idStr, req)
 	if err != nil {
 		return nil, err
 	}
