@@ -76,6 +76,15 @@ def build_gc_breakdown(**kwargs):
         **kwargs,
     ) for gc in gcs]
 
+def build_world_breakdown(**kwargs):
+    df = pd.read_sql('SELECT world, COUNT(*) FROM characters GROUP BY world ORDER BY world ASC', db.engine, index_col=['world'])
+    worlds = list(df.index.values)
+    return [go.Bar(
+        x=worlds,
+        y=df['count'],
+        **kwargs,
+    )]
+
 def build_title_table(**kwargs):
     df = pd.read_sql('SELECT title, COUNT(*) FROM characters INNER JOIN character_titles ON characters.title_id = character_titles.id GROUP BY title ORDER BY count DESC LIMIT 10', db.engine)
     return build_table(df, **kwargs)
@@ -151,6 +160,16 @@ def build_layout():
                 ),
             ], className='col-sm-8'),
         ], className='row'),
+        html.Div([
+            dcc.Graph(
+                id="world-breakdown",
+                figure=go.Figure(
+                    data=[*build_world_breakdown()],
+                    layout=go.Layout(title="Worlds"),
+                ),
+                className='col-sm-12',
+            ),
+        ], className='row', style={'min-height': '500px'}),
         html.Div([
             html.Div([
                 html.H5("Top 10 Titles"),
