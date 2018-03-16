@@ -25,6 +25,8 @@ type Character struct {
 	Clan      CharacterClan     `json:"clan"`
 	Gender    string            `json:"gender"`
 	Guardian  CharacterGuardian `json:"guardian"`
+	CityState CityState         `json:"city_state"`
+	World     World             `json:"world"`
 
 	Title   *CharacterTitle `json:"title" gorm:"association_autoupdate:false"`
 	TitleID null.Int        `json:"title_id"`

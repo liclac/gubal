@@ -81,6 +81,7 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	if err := multierr.Combine(
 		j.parseName(ctx, &char, doc),
 		j.parseTitle(ctx, &char, doc),
+		j.parseWorld(ctx, &char, doc),
 		j.parseBlocks(ctx, &char, doc),
 	); err != nil {
 		return nil, err
@@ -112,6 +113,143 @@ func (j FetchCharacterJob) parseTitle(ctx context.Context, ch *models.Character,
 	title, err := models.GetDataStore(ctx).CharacterTitles().GetOrCreate(titleStr)
 	ch.Title = title
 	return err
+}
+
+func (j FetchCharacterJob) parseWorld(ctx context.Context, ch *models.Character, doc *goquery.Document) error {
+	world := trim(doc.Find(".frame__chara__world").First().Text())
+	switch world {
+	case "Aegis":
+		ch.World = models.Aegis
+	case "Atomos":
+		ch.World = models.Atomos
+	case "Carbuncle":
+		ch.World = models.Carbuncle
+	case "Garuda":
+		ch.World = models.Garuda
+	case "Gungnir":
+		ch.World = models.Gungnir
+	case "Kujata":
+		ch.World = models.Kujata
+	case "Ramuh":
+		ch.World = models.Ramuh
+	case "Tonberry":
+		ch.World = models.Tonberry
+	case "Typhon":
+		ch.World = models.Typhon
+	case "Unicorn":
+		ch.World = models.Unicorn
+	case "Alexander":
+		ch.World = models.Alexander
+	case "Bahamut":
+		ch.World = models.Bahamut
+	case "Durandal":
+		ch.World = models.Durandal
+	case "Fenrir":
+		ch.World = models.Fenrir
+	case "Ifrit":
+		ch.World = models.Ifrit
+	case "Ridill":
+		ch.World = models.Ridill
+	case "Tiamat":
+		ch.World = models.Tiamat
+	case "Ultima":
+		ch.World = models.Ultima
+	case "Valefor":
+		ch.World = models.Valefor
+	case "Yojimbo":
+		ch.World = models.Yojimbo
+	case "Zeromus":
+		ch.World = models.Zeromus
+	case "Anima":
+		ch.World = models.Anima
+	case "Asura":
+		ch.World = models.Asura
+	case "Belias":
+		ch.World = models.Belias
+	case "Chocobo":
+		ch.World = models.Chocobo
+	case "Hades":
+		ch.World = models.Hades
+	case "Ixion":
+		ch.World = models.Ixion
+	case "Mandragora":
+		ch.World = models.Mandragora
+	case "Masamune":
+		ch.World = models.Masamune
+	case "Pandemonium":
+		ch.World = models.Pandemonium
+	case "Shinryu":
+		ch.World = models.Shinryu
+	case "Titan":
+		ch.World = models.Titan
+	case "Adamantoise":
+		ch.World = models.Adamantoise
+	case "Balmung":
+		ch.World = models.Balmung
+	case "Cactuar":
+		ch.World = models.Cactuar
+	case "Coeurl":
+		ch.World = models.Coeurl
+	case "Faerie":
+		ch.World = models.Faerie
+	case "Gilgamesh":
+		ch.World = models.Gilgamesh
+	case "Goblin":
+		ch.World = models.Goblin
+	case "Jenova":
+		ch.World = models.Jenova
+	case "Maetus":
+		ch.World = models.Maetus
+	case "Midgardsormr":
+		ch.World = models.Midgardsormr
+	case "Sargatanas":
+		ch.World = models.Sargatanas
+	case "Siren":
+		ch.World = models.Siren
+	case "Zalera":
+		ch.World = models.Zalera
+	case "Behemoth":
+		ch.World = models.Behemoth
+	case "Brynhildr":
+		ch.World = models.Brynhildr
+	case "Diabolos":
+		ch.World = models.Diabolos
+	case "Excalibur":
+		ch.World = models.Excalibur
+	case "Exodus":
+		ch.World = models.Exodus
+	case "Famfrit":
+		ch.World = models.Famfrit
+	case "Hyperion":
+		ch.World = models.Hyperion
+	case "Lamia":
+		ch.World = models.Lamia
+	case "Leviathan":
+		ch.World = models.Leviathan
+	case "Malboro":
+		ch.World = models.Malboro
+	case "Ultros":
+		ch.World = models.Ultros
+	case "Cerberus":
+		ch.World = models.Cerberus
+	case "Lich":
+		ch.World = models.Lich
+	case "Moogle":
+		ch.World = models.Moogle
+	case "Odin":
+		ch.World = models.Odin
+	case "Phoenix":
+		ch.World = models.Phoenix
+	case "Ragnarok":
+		ch.World = models.Ragnarok
+	case "Shiva":
+		ch.World = models.Shiva
+	case "Zodiark":
+		ch.World = models.Zodiark
+	default:
+		return errors.Errorf("unknown world: '%s'", world)
+	}
+	return nil
 }
 
 // parseBlocks parses the blocks containing Race/Clan/Gender, Nameday/Guardian, City State and GC.
@@ -233,8 +371,17 @@ func (j FetchCharacterJob) parseNamedayGuardianBlock(ctx context.Context, ch *mo
 }
 
 func (j FetchCharacterJob) parseCityStateBlock(ctx context.Context, ch *models.Character, doc *goquery.Document, sel *goquery.Selection) error {
-	str := trim(sel.Find(".character-block__profile").Text())
-	lib.GetLogger(ctx).Info("city-state", zap.String("city_state", str))
+	cityState := trim(sel.Find(".character-block__profile").Text())
+	switch cityState {
+	case "Gridania":
+		ch.CityState = models.Gridania
+	case "Ul'dah":
+		ch.CityState = models.Uldah
+	case "Limsa Lominsa":
+		ch.CityState = models.Limsa
+	default:
+		return errors.Errorf("unknown city state: '%s'", cityState)
+	}
 	return nil
 }
 
