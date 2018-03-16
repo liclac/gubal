@@ -8,6 +8,12 @@ import numpy as np
 import pandas as pd
 
 TABLE_CLASSES = 'table table-hover table-sm'
+GC_COLORS = {
+    None: '#CCCCCC',
+    'Adders': '#FFCC33',
+    'Flames': '#AA77CC',
+    'Maelstrom': '#FF5555',
+}
 
 app = dash.Dash()
 app.server.config['SQLALCHEMY_DATABASE_URI'] = 'postgres:///gubal'
@@ -65,7 +71,17 @@ def build_race_clan_gender_chart(**kwargs):
 
 def build_gc_chart(**kwargs):
     df = pd.read_sql('SELECT gc, COUNT(*) FROM characters GROUP BY gc ORDER BY gc ASC', db.engine, index_col=['gc'])
-    return go.Pie(labels=df.index.tolist(), values=df['count'], **kwargs)
+    gcs = df.index.tolist()
+    colors = [GC_COLORS[gc] for gc in gcs]
+    return go.Pie(
+        labels=gcs,
+        values=df['count'],
+        marker=go.Marker(
+            colors=colors,
+            line=go.Line(color='#FFF', width=1),
+        ),
+        **kwargs,
+    )
 
 def build_gc_breakdown(**kwargs):
     df = pd.read_sql('SELECT gc, gc_rank, COUNT(*) FROM characters GROUP BY gc, gc_rank ORDER BY gc, gc_rank ASC', db.engine, index_col=['gc', 'gc_rank'])
@@ -73,11 +89,12 @@ def build_gc_breakdown(**kwargs):
     return [go.Bar(
         y=df.loc[gc]['count'],
         name=gc,
+        marker=go.Marker(color=GC_COLORS[gc]),
         **kwargs,
     ) for gc in gcs]
 
 def build_world_breakdown(**kwargs):
-    df = pd.read_sql('SELECT world, COUNT(*) FROM characters GROUP BY world ORDER BY world ASC', db.engine, index_col=['world'])
+    df = pd.read_sql('SELECT world, COUNT(*) FROM characters GROUP BY world ORDER BY count DESC', db.engine, index_col=['world'])
     worlds = list(df.index.values)
     return [go.Bar(
         x=worlds,
@@ -143,9 +160,7 @@ def build_layout():
                 dcc.Graph(
                     id="gc-graph",
                     figure=go.Figure(
-                        data=[build_gc_chart(
-                            marker=go.Marker(line=go.Line(color='#FFF', width=1)),
-                        )],
+                        data=[build_gc_chart()],
                         layout=go.Layout(title="Grand Companies"),
                     ),
                 ),
