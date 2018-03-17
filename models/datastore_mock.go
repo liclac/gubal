@@ -11,6 +11,7 @@ type MockDataStore struct {
 	CharacterStore          *MockCharacterStore
 	CharacterTombstoneStore *MockCharacterTombstoneStore
 	CharacterTitleStore     *MockCharacterTitleStore
+	LevelStore              *MockLevelStore
 }
 
 // NewMockDataStore creates a new DataStore, full of mock implementations of data stores.
@@ -19,6 +20,7 @@ func NewMockDataStore(ctrl *gomock.Controller) *MockDataStore {
 		CharacterStore:          NewMockCharacterStore(ctrl),
 		CharacterTombstoneStore: NewMockCharacterTombstoneStore(ctrl),
 		CharacterTitleStore:     NewMockCharacterTitleStore(ctrl),
+		LevelStore:              NewMockLevelStore(ctrl),
 	}
 }
 
@@ -35,4 +37,9 @@ func (ds *MockDataStore) CharacterTombstones() CharacterTombstoneStore {
 // CharacterTitles implements the DataStore interface.
 func (ds *MockDataStore) CharacterTitles() CharacterTitleStore {
 	return ds.CharacterTitleStore
+}
+
+// Levels implements the DataStore interface.
+func (ds *MockDataStore) Levels() LevelStore {
+	return ds.LevelStore
 }

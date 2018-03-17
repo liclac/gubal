@@ -439,3 +439,86 @@ func (j FetchCharacterJob) parseGrandCompanyBlock(ctx context.Context, ch *model
 
 	return nil
 }
+
+func (j FetchCharacterJob) parseJobs(ctx context.Context, ch *models.Character, doc *goquery.Document) error {
+	var errs []error
+	doc.Find("ul.character__job li").Each(func(i int, sel *goquery.Selection) {
+		levelObj := models.Level{CharacterID: ch.ID}
+
+		// Parse level, skip over not yet unlocked jobs.
+		levelStr := trim(sel.Find(".character__job__level").First().Text())
+		if levelStr == "-" || levelStr == "" {
+			return
+		}
+		level, err := strconv.ParseInt(levelStr, 10, 64)
+		if err != nil {
+			return
+		}
+		levelObj.Level = int(level)
+
+		// Parse the job name.
+		jobName := trim(sel.Find(".character__job__name").First().Text())
+		switch jobName {
+		case "":
+			return
+		case "Paladin", "Gladiator":
+			levelObj.Job = models.PLD
+		case "Warrior", "Marauder":
+			levelObj.Job = models.WAR
+		case "Dark Knight":
+			levelObj.Job = models.DRK
+		case "White Mage", "Conjurer":
+			levelObj.Job = models.WHM
+		case "Scholar":
+			levelObj.Job = models.SCH
+		case "Astrologian":
+			levelObj.Job = models.AST
+		case "Monk", "Pugilist":
+			levelObj.Job = models.MNK
+		case "Dragoon", "Lancer":
+			levelObj.Job = models.DRG
+		case "Ninja", "Rogue":
+			levelObj.Job = models.NIN
+		case "Samurai":
+			levelObj.Job = models.SAM
+		case "Bard", "Archer":
+			levelObj.Job = models.BRD
+		case "Machinist":
+			levelObj.Job = models.MCH
+		case "Black Mage", "Thaumaturge":
+			levelObj.Job = models.BLM
+		case "Summoner", "Arcanist":
+			levelObj.Job = models.SMN
+		case "Red Mage":
+			levelObj.Job = models.RDM
+		case "Carpenter":
+			levelObj.Job = models.CRP
+		case "Blacksmith":
+			levelObj.Job = models.BSM
+		case "Armorer":
+			levelObj.Job = models.ARM
+		case "Goldsmith":
+			levelObj.Job = models.GSM
+		case "Leatherworker":
+			levelObj.Job = models.LTW
+		case "Weaver":
+			levelObj.Job = models.WVR
+		case "Alchemist":
+			levelObj.Job = models.ALC
+		case "Culinarian":
+			levelObj.Job = models.CUL
+		case "Miner":
+			levelObj.Job = models.MIN
+		case "Botanist":
+			levelObj.Job = models.BOT
+		case "Fisher":
+			levelObj.Job = models.FSH
+		default:
+			errs = append(errs, errors.Errorf("unknown job: '%s'", jobName))
+			return
+		}
+
+		errs = append(errs, models.GetDataStore(ctx).Levels().Set(&levelObj))
+	})
+	return multierr.Combine(errs...)
+}
