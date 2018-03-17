@@ -69,6 +69,36 @@ def build_race_clan_gender_chart(**kwargs):
             series[i]["y"].append(race_data.loc[clan_and_gender]['count'])
     return [go.Bar(x=races, **s, **kwargs) for s in series]
 
+def build_level_breakdown(**kwargs):
+    df = pd.read_sql('''
+        SELECT
+            CASE
+                WHEN level = 1 THEN 1
+                WHEN level > 1 AND level < 15 THEN 2
+                WHEN level = 15 THEN 15
+                WHEN level > 15 AND level < 30 THEN 16
+                WHEN level = 30 THEN 30
+                WHEN level > 30 AND level < 50 THEN 31
+                WHEN level = 50 THEN 50
+                WHEN level > 50 AND level < 60 THEN 51
+                WHEN level = 60 THEN 60
+                WHEN level > 60 AND level < 70 THEN 61
+                WHEN level = 70 THEN 70
+            END level_range,
+            job,
+            COUNT(*)
+        FROM levels
+        GROUP BY level_range, job
+        ORDER BY job, level_range ASC
+    ''', db.engine, index_col=['level_range', 'job'])
+    ranges = list(df.index.get_level_values('level_range').unique())
+    jobs = list(df.index.get_level_values('job').unique())
+    return [go.Bar(
+        x=jobs,
+        y=df.loc[rng]['count'],
+        name=rng,
+    ) for rng in ranges]
+
 def build_gc_chart(**kwargs):
     df = pd.read_sql('SELECT gc, COUNT(*) FROM characters GROUP BY gc ORDER BY gc ASC', db.engine, index_col=['gc'])
     gcs = df.index.tolist()
@@ -151,6 +181,20 @@ def build_layout():
                         textposition='auto',
                     )],
                     layout=go.Layout(title="Breakdown", barmode='group'),
+                ),
+                className='col-sm-12',
+            ),
+        ], className='row', style={'min-height': '500px'}),
+        html.Div([
+            dcc.Graph(
+                id="level-breakdown",
+                figure=go.Figure(
+                    data=[*build_level_breakdown(
+                        # showlegend=False,
+                        # hoverinfo='y+text',
+                        # textposition='auto',
+                    )],
+                    layout=go.Layout(title="Levels", barmode='group'),
                 ),
                 className='col-sm-12',
             ),
