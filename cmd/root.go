@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 		zap.ReplaceGlobals(l)
-		zap.RedirectStdLog(l)
+		zap.RedirectStdLogAt(l, zap.DebugLevel)
 		return nil
 	},
 }

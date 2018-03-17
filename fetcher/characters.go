@@ -35,6 +35,7 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 	ds := models.GetDataStore(ctx)
 
 	idStr := strconv.FormatInt(j.ID, 10)
+	lib.GetLogger(ctx).Info("Fetching Character", zap.Int64("id", j.ID))
 
 	// Check if the character has a tombstone, bail out if so.
 	dead, err := ds.CharacterTombstones().Check(j.ID)
@@ -86,6 +87,7 @@ func (j FetchCharacterJob) Run(ctx context.Context) (rjobs []Job, rerr error) {
 		j.parseTitle(ctx, &char, doc),
 		j.parseWorld(ctx, &char, doc),
 		j.parseBlocks(ctx, &char, doc),
+		j.parseJobs(ctx, &char, doc),
 	); err != nil {
 		return nil, err
 	}
@@ -283,7 +285,6 @@ func (j FetchCharacterJob) parseBlocks(ctx context.Context, ch *models.Character
 func (j FetchCharacterJob) parseRaceClanGenderBlock(ctx context.Context, ch *models.Character, doc *goquery.Document, sel *goquery.Selection) error {
 	// Extract the blurb.
 	str := trim(sel.Find(".character-block__profile").Text())
-	lib.GetLogger(ctx).Info("race/clan/gender", zap.String("str", str))
 
 	// Split it up into parts.
 	parts := strings.SplitN(str, "/", 2)
@@ -292,7 +293,6 @@ func (j FetchCharacterJob) parseRaceClanGenderBlock(ctx context.Context, ch *mod
 	}
 	raceClan := trim(parts[0])
 	gender := trim(parts[1])
-	lib.GetLogger(ctx).Info("race/clan/gender", zap.String("race_clan", raceClan), zap.String("gender", gender))
 
 	// Assign gender.
 	ch.Gender = gender
@@ -342,9 +342,8 @@ func (j FetchCharacterJob) parseRaceClanGenderBlock(ctx context.Context, ch *mod
 }
 
 func (j FetchCharacterJob) parseNamedayGuardianBlock(ctx context.Context, ch *models.Character, doc *goquery.Document, sel *goquery.Selection) error {
-	birth := trim(sel.Find(".character-block__birth").Text())
+	// birth := trim(sel.Find(".character-block__birth").Text())
 	guardian := trim(sel.Find(".character-block__profile").Text())
-	lib.GetLogger(ctx).Info("nameday/guardian", zap.String("birth", birth), zap.String("guardian", guardian))
 
 	switch {
 	case strings.HasPrefix(guardian, "Halone"):
@@ -394,7 +393,6 @@ func (j FetchCharacterJob) parseCityStateBlock(ctx context.Context, ch *models.C
 
 func (j FetchCharacterJob) parseGrandCompanyBlock(ctx context.Context, ch *models.Character, doc *goquery.Document, sel *goquery.Selection) error {
 	str := trim(sel.Find(".character-block__profile").Text())
-	lib.GetLogger(ctx).Info("grand company", zap.String("str", str))
 
 	parts := strings.SplitN(str, "/", 2)
 	if l := len(parts); l != 2 {
@@ -402,7 +400,6 @@ func (j FetchCharacterJob) parseGrandCompanyBlock(ctx context.Context, ch *model
 	}
 	gcName := trim(parts[0])
 	rankName := trim(parts[1])
-	lib.GetLogger(ctx).Info("grand company", zap.String("gc_name", gcName), zap.String("rank_name", rankName))
 
 	switch gcName {
 	case "Maelstrom":

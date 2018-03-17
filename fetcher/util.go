@@ -40,7 +40,7 @@ func doRequestWithCache(fs afero.Fs, key string, req *http.Request) (*http.Respo
 	ctx := req.Context()
 	filename := key + ".http"
 	if f, err := fs.Open(filename); err == nil {
-		lib.GetLogger(ctx).Info("Reusing a cached response", zap.String("filename", filename))
+		lib.GetLogger(ctx).Debug("Reusing a cached response", zap.String("filename", filename))
 		return http.ReadResponse(bufio.NewReader(f), req)
 	}
 
@@ -50,7 +50,7 @@ func doRequestWithCache(fs afero.Fs, key string, req *http.Request) (*http.Respo
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
-		lib.GetLogger(ctx).Info("Writing response to cache", zap.String("filename", filename))
+		lib.GetLogger(ctx).Debug("Writing response to cache", zap.String("filename", filename))
 
 		var buf bytes.Buffer
 		if err := resp.Write(&buf); err != nil {
@@ -63,7 +63,7 @@ func doRequestWithCache(fs afero.Fs, key string, req *http.Request) (*http.Respo
 		// Because resp.Write consumes the body and I'm a lazy arsehole.
 		resp, err = http.ReadResponse(bufio.NewReader(&buf), req)
 	default:
-		lib.GetLogger(ctx).Info("Not caching unsuccessful response",
+		lib.GetLogger(ctx).Debug("Not caching unsuccessful response",
 			zap.Stringer("url", req.URL),
 			zap.Int("status", resp.StatusCode),
 		)

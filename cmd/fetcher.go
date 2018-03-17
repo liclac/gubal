@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
 	"github.com/liclac/gubal/fetcher"
@@ -50,8 +51,10 @@ var fetcherCmd = &cobra.Command{
 			return err
 		}
 		defer db.Close()
-		ctx = lib.WithRawDB(ctx, db)
-		ctx = models.WithDataStore(ctx, models.NewDataStore(db))
+
+		// Adjust pool size to concurrency.
+		db.DB().SetMaxOpenConns(concurrency * 2)
+		db.DB().SetMaxIdleConns(concurrency * 2)
 
 		// Connect to NSQ...
 		prod, err := newNSQProducer()
@@ -63,9 +66,22 @@ var fetcherCmd = &cobra.Command{
 			return err
 		}
 		cons.ChangeMaxInFlight(concurrency)
-		cons.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) error {
+		cons.AddConcurrentHandlers(nsq.HandlerFunc(func(m *nsq.Message) (rerr error) {
 			wg.Add(1)
 			defer wg.Done()
+
+			// TODO: Stop tying datastores to database instances, this is really wasteful.
+			// You have the context right there, just use it >_>
+			tx := db.Begin()
+			defer func() {
+				if rerr != nil {
+					rerr = multierr.Append(rerr, tx.Rollback().Error)
+				} else {
+					rerr = multierr.Append(rerr, tx.Commit().Error)
+				}
+			}()
+			ctx = lib.WithRawDB(ctx, tx)
+			ctx = models.WithDataStore(ctx, models.NewDataStore(db))
 
 			zap.L().Debug("Processing...",
 				zap.ByteString("body", m.Body),

@@ -26,9 +26,8 @@ func dbConnect() (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	db = db.LogMode(true)
 	if !viper.GetBool("prod") {
-		db = db.Debug()
+		db = db.LogMode(true).Debug()
 	}
 	return db, nil
 }
